@@ -2,8 +2,9 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // 1. 引入性能监视器
 import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js';
 
-let scene, camera, renderer;
+let scene, camera, renderer, labelRenderer;
 let controls;
 
 // 立方体
@@ -19,6 +20,9 @@ function init () {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.z = 5
+    // 1. 调整摄像机位置到盒子中间
+  // 不能给 0 的原因：轨道控制器内部会去除摄像机初始位置做变化
+  // camera.position.z = 0.1;
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight );
   document.body.append( renderer.domElement );
@@ -27,7 +31,7 @@ function init () {
 function createCube() {
   const cubeInfoArr = [];
   // 循环创建 5 个立方体
-  for (let i = 0; i < 2500; i++) {
+  for (let i = 0; i < 1; i++) {
     cubeInfoArr.push({
       color: 
         `rgb(${Math.floor(Math.random() * (255 - 0 + 1) + 0)}, ${Math.floor(Math.random() * (255 - 0 + 1) + 0)}, ${Math.floor(Math.random() * (255 - 0 + 1) + 0)})`,
@@ -82,6 +86,9 @@ function renderLoop() {
   renderer.render(scene, camera);
   
   controls.update();
+
+  // 要让 DOM 渲染器不断封信不同角度的最新画面
+  labelRenderer.render(scene, camera);
 
   // 5.性能监视器不断更新
   // stats.update();
@@ -233,7 +240,92 @@ function createCubeMap() {
   })
 
   const cube = new THREE.Mesh(geometry, materiaArr);
+  // 2. 调整立方体沿着 z 轴做 -1 缩小（镜面反转）
+  cube.scale.set(1, 1, -1);
   scene.add(cube);
+}
+
+function createPlameMap() {
+  // 1. 创建平面几何体
+  // 2. 创建并设置视频纹理贴图
+  const geometry = new THREE.PlaneGeometry(1, 0.5);
+
+  // 视频纹理
+  const video = document.createElement('video');
+  video.src = 'video/mouse_cat.mp4';
+  video.muted = true;
+  video.loop = true;
+  video.autoplay = true;
+  video.addEventListener('loadeddata', () => {
+    video.play();
+  })
+  // 视频纹理
+  const texture = new THREE.VideoTexture(video);
+  // 创建材质
+  const material = new THREE.MeshBasicMaterial({ map: texture });
+  // 创建网格对象
+  const plane = new THREE.Mesh(geometry, material);
+
+  scene.add(plane);
+
+  // 点击播放
+  const btn = document.createElement('button');
+  btn.innerText = '播放';
+  btn.style.position = 'fixed';
+  btn.style.top = '10px';
+  btn.style.left = '10px';
+  btn.addEventListener('click', () => {
+    video.muted = false;
+  })
+  document.body.appendChild(btn);
+}
+
+function domTo3D() {
+  // 1. 准备原生 DOM 元素
+  const tag = document.createElement('span');
+  tag.innerHTML = '立方体';
+  tag.style.color = '#ffffff';
+
+  // 类型1: 原生 DOM 使用原生的事件绑定（设置 pointerEvents: 'all')
+  tag.addEventListener('click', (e) => {
+    console.log('点击了文字');
+    e.stopPropagation();
+  })
+
+  // 2. 引入 CSS3DObject CSS3DRenderer 渲染器 并将原生 DOM 元素转换为 3D 对象
+  const tag3d = new CSS3DObject(tag);
+  tag3d.scale.set(1 / 16, 1 / 16, 1 / 16);
+  scene.add(tag3d);
+
+  labelRenderer = new CSS3DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.pointerEvents = 'none'; // 什么条件下让标签出发鼠标交互事件
+  labelRenderer.domElement.style.position = 'fixed';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.left = '0';
+  document.body.appendChild(labelRenderer.domElement);
+
+  // 重要：CSS3DRenderer 是一个新的渲染器，需要在渲染循环调用并适配
+}
+
+function bindClick() {
+  window.addEventListener('click', (e) => {
+    // 定义光线投射对象
+    const raycaster = new THREE.Raycaster();
+
+    // 定义二维向量对象（保存转换后的平面 x, y 坐标值）
+    const pointer = new THREE.Vector2();
+
+    // 把屏幕左边 =》WebGl设备坐标
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    // 更新摄像机和鼠标之间的连线
+    raycaster.setFromCamera(pointer, camera);
+    // 获取这条线穿过了那些物体，收集成一个数组
+    const list = raycaster.intersectObjects(scene.children);
+    console.log(list);
+  })
 }
 
 // 初始化
@@ -249,7 +341,7 @@ createHelper();
 renderResize();
  
 // 创建立方体
-// createCube();
+createCube();
 
 // 绑定删除事件
 // removeCube();
@@ -270,7 +362,15 @@ renderResize();
 // createMap();
 
 // 立方体贴图
-createCubeMap();
+// createCubeMap();
+
+// 视频贴图
+// createPlameMap();
+
+// dom 转 3D
+domTo3D();
+
+bindClick();
 
 // 渲染循环
 renderLoop();

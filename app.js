@@ -177,12 +177,63 @@ function createSphere() {
 }
 
 function createLine() {
+  // const geometry = new THREE.SphereGeometry(1, 32, 16);
+
+  // const material = new THREE.LineBasicMaterial({ color: 0xc60fcc });
+  
+  // const line = new THREE.Line( geometry, material );
+  // scene.add( line );
+
+  const material = new THREE.LineBasicMaterial({
+    color: 0x0000ff
+  });
+  
+  const points = [];
+  points.push( new THREE.Vector3( - 1, 0, 0 ) );
+  points.push( new THREE.Vector3( 0, 1, 0 ) );
+  points.push( new THREE.Vector3( 1, 0, 0 ) );
+  points.push( new THREE.Vector3( 1, 1, 0 ) );
+  
+  const geometry = new THREE.BufferGeometry().setFromPoints( points );
+  
+  // Line 一条联系的线
+  // LineLoop 闭合的线
+  // LineSegments 多条连接的线
+  const line = new THREE.LineSegments( geometry, material );
+  scene.add( line );
+}
+
+function createMap() {
   const geometry = new THREE.SphereGeometry(1, 32, 16);
 
-  const material = new THREE.LineBasicMaterial({ color: 0xc60fcc });
-  
-  const line = new THREE.Line( geometry, material );
-  scene.add( line );
+  const texture = new THREE.TextureLoader().load('image/earth/earth.png');
+
+  const material = new THREE.MeshBasicMaterial({ map: texture });
+
+  const sphere = new THREE.Mesh(geometry, material);
+  scene.add(sphere);
+}
+
+function createCubeMap() {
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+  const imgUrlArr = ['posx.jpg', 'negx.jpg', 'posy.jpg', 'negy.jpg', 'posz.jpg', 'negz.jpg'];
+
+  const textureLoader = new THREE.TextureLoader();
+
+  textureLoader.setPath('image/park/')
+
+  const materiaArr = imgUrlArr.map(item => {
+    const texture = textureLoader.load(item);
+    // three.js 颜色通道
+    texture.colotSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshBasicMaterial({ 
+      map: texture
+    });
+  })
+
+  const cube = new THREE.Mesh(geometry, materiaArr);
+  scene.add(cube);
 }
 
 // 初始化
@@ -213,7 +264,13 @@ renderResize();
 // createSphere();
 
 // 线条
-createLine();
+// createLine();
+
+// 创建贴图
+// createMap();
+
+// 立方体贴图
+createCubeMap();
 
 // 渲染循环
 renderLoop();
